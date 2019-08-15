@@ -35,6 +35,7 @@ x <- read_excel("data/PROV - Home Geography Table 8.1a   Weekly pay - Gross 2018
 x_i <- t(x) %>% 
     as_tibble()
     
+
 x_i[is.na(x_i)] <- ''
 
 
@@ -144,9 +145,11 @@ ASHA_Table.8_xls_all <- glue::glue('data/{ASHA_Table.8_xls_all}')
 
 
 
+
 # get sheet names
 sheet_names_ls <- map(ASHA_Table.8_xls_all, function(x){
-    excel_sheets(x)
+    excel_sheets(x) %>% 
+        .[-1]
 })
 
 
@@ -194,22 +197,128 @@ all_file_ls <-
 })
 
 
+map(all_file_ls, function(x){
+    map(x, length)
+})
 
 
-length(all_file_ls) 
-names(all_file_ls) 
+##############################
+#### Filter the list here ####
+##############################
+############################## 
 
 
-str_extract(ASHA_Table.8_xls_all, "\\d+(?= pieces?)")
+map(all_file_ls, function(x){
+    map(x, function(y){
+         y %>% 
+            select(-1)
+    })
+})
 
 
 
-x <- c("1 piece", "2 pieces", "3")
-str_extract(x, "\\d+(?= pieces?)")
-#> [1] "1" "2" NA
 
-y <- c("100", "$400")
-str_extract(y, "(?<=\\$)\\d+")
-#> [1] NA    "400"
+all_file_ls[]
+
+ 
+names(all_file_ls) <- 
+    str_remove(ASHA_Table.8_xls_all, 
+           "data/PROV - Home Geography Table 8.") %>% 
+  str_remove_all('[[:digit:]]') %>% 
+  str_remove_all('\\ba\\b') %>% 
+  str_remove_all('.xls$') %>% 
+  str_remove_all('-') %>% 
+    str_squish() %>% 
+    str_to_lower() %>% 
+    str_replace_all(' ', '_')
+
+
+ls_df_names_eq_10 <- which(map(all_file_ls, length) == 10) %>% 
+    names()
+
+ls_names_eq_10 <- which(map(sheet_names_ls, length) == 9) 
+
+# pull names for each sheet for tables that have 10 sheets
+names_sheet_10 <- 
+    sheet_names_ls[ls_names_eq_10][1] %>% 
+    flatten_chr() %>% 
+    str_replace_all('-', '_') %>% 
+    str_replace_all(' ', '_') %>% 
+    str_to_lower() %>% 
+    .[-1]
+
+
+
+
+df_eq_10_ls <- all_file_ls[ls_df_names_eq_10]
+
+for (i in seq_along(df_eq_10_ls)){
+    names(df_eq_10_ls[[i]]) <- names_sheet_10
+}
+
+
+
+
+all_file_names_ls[[1]][[2]] %>% 
+    str_replace_all('-', '_') %>% 
+    str_replace_all(' ', '_') %>% 
+    str_to_lower()
+
+
+
+column_names <- c('description', 
+  'code',
+  'number_jobs_in_k',
+  'median', 
+  'annual_median_change', 
+  'mean', 
+  'annual_mean_change', 
+  glue::glue('percentile_{seq(0, 100, 10)}'), 
+  'other_1',
+  'other_2')
+
+
+
+
+df_eq_10_ls 
+
+which(names(df_eq_10_ls) == 'notes')
+
+
+
+map(df_eq_10_ls, function(.x){
+    names(df_eq_10_ls) != 'notes'})
+
+
+
+df_eq_10_ls[1:11][[1]] %>% names()
+
+map(df_eq_10_ls, function(.x){
+    map(.x, function(.x){
+        .x %>% 
+            length()
+    })    
+})
+
+
+map_if(df_eq_10_ls, is.data.frame, ~ .x %>% 
+           set_names(org_names),
+       .else = ~ map(.x, set_names, org_names))
+
+
+##########################################
+###  Need to filter the list of lists ####
+##########################################
+
+
+
+
+
+
+
+
+
+
+
 
 
