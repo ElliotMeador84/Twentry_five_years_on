@@ -218,8 +218,7 @@ map(all_file_ls, function(x){
 
 
 
-all_file_ls[]
-
+names(all_file_ls)
  
 names(all_file_ls) <- 
     str_remove(ASHA_Table.8_xls_all, 
@@ -309,9 +308,6 @@ map_if(df_eq_10_ls, is.data.frame, ~ .x %>%
 ##########################################
 ###  Need to filter the list of lists ####
 ##########################################
-
-
-
 
 
 
