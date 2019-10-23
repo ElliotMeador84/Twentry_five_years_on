@@ -1,0 +1,120 @@
+---
+title: "Annual Survey of Hours and Earnings"
+author: "Elliot Meador"
+date: "23/10/2019"
+output: word_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r library-data, echo=F, warning=F, message=F}
+library(tidyverse)
+library(scales)
+library(glue)
+
+if(Sys.info()[[1]] == 'Windows'){
+  
+    ASHE_Table_8_tidy <- read_csv('C:/Users/emeador/OneDrive - SRUC/Data/ashe/home_geography/ASHE_Table_8_tidy.csv')
+    source('C:/Users/emeador/OneDrive - SRUC/all_functions.R')
+    
+} else {
+      ASHE_Table_8_tidy <- read_csv('/Users/johne.meador/OneDrive - SRUC/Data/ashe/home_geography/ASHE_Table_8_tidy.csv')
+  
+}
+
+
+pop_theme <- theme_bw()+
+    theme(text = element_text(size = 13.5, 
+                              color = 'black'), 
+          axis.text.x = element_text(angle = 45, hjust = 1), 
+          panel.grid.minor = element_blank(), 
+          axis.title.y = element_text(angle = 0), 
+          plot.margin = margin(1,1,1,1, 'cm'), 
+          strip.background = element_blank(), 
+          strip.text.y = element_text(angle = 0))
+
+
+
+case_study_cols <- c(Spectral[c(1, 7, 11)], 
+                     adjustcolor(Greys[2], .25))
+
+names(case_study_cols) <- c('Perth Kinross', 
+                            'Northumberland', 
+                            'Eilean Siar')
+```
+
+
+
+
+
+```{r scratch ,echo=F, warning=F, message=F}
+
+case_study <- c('Perth Kinross', 
+                'Northumberland', 
+                'Eilean Siar')
+
+example <- ASHE_Table_8_tidy %>% 
+    filter(area  %in% case_study, 
+           statistic == 'Median')
+
+
+
+example_tidy <- example %>% 
+  arrange(area, sheet, year) %>% 
+    filter(sheet == 'All') %>% 
+    mutate(base = case_when(
+        year == min(year, na.rm = T) ~ value, 
+        T ~ NA_real_
+    )) %>% 
+  fill(base, .direction = 'down') %>% 
+    mutate(diff = value - base) %>% 
+    split(.$file)
+
+
+
+
+
+
+
+```
+
+
+
+
+
+```{r plots, echo=F, warning=F, message=F, fig.width=14, fig.height=14}
+
+map2(example_tidy,names(example_tidy), function(x, y){
+    
+x %>% 
+    ggplot(aes(year, diff, color = area, group = area))+
+    geom_line(size = 1.35)+ 
+    geom_point(size = 3)+
+    scale_y_continuous(labels = function(x) glue('£{comma(x)}'))+
+    scale_color_manual(values = case_study_cols, 
+                       name = 'Case Study Local Authority')+
+    facet_wrap(~sheet, scales = 'free')+
+    pop_theme+
+    theme(legend.position = 'bottom')+
+    labs(title = y, 
+         x = 'Year', 
+         y = 'Median Change\nover time')
+})
+```
+
+
+
+
+
+
+
+
+
+
+

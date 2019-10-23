@@ -1,313 +1,210 @@
-library(tidyverse)
+brary(tidyverse)
 library(readxl)
+library(glue)
+library(shiny)
+library(plotly)
 
-## Unzip the file and save the files
-unzip('C:/Users/emeador/Downloads/table82018provisional (2).zip', 
-      exdir = 'data')
+source('/Users/emeador/OneDrive - SRUC/all_functions.R')
 
-## Get sheet names 
-excel_sheets("data/PROV - Home Geography Table 8.1a   Weekly pay - Gross 2018.xls")
-
-
-
-
-
-
-#############################################
-### Iterate and pull names for each sheet ###
-#############################################
-# function credit to https://stackoverflow.com/questions/12945687/read-all-worksheets-in-an-excel-workbook-into-an-r-list-with-data-frames
-
-
-read_excel_allsheets <- function(filename) {
-    sheets <- readxl::excel_sheets(filename)
-    map(sheets, function(X) readxl::read_excel(filename, sheet = X))
-    names(x) <- sheets
-    x
-}
 
 # process overview
 
-x <- read_excel("data/PROV - Home Geography Table 8.1a   Weekly pay - Gross 2018.xls", 
-           sheet = 2, trim_ws = T) %>% 
-    slice(1:4) 
-
-x_i <- t(x) %>% 
-    as_tibble()
-    
-
-x_i[is.na(x_i)] <- ''
 
 
-x_names <- x_i %>% 
-  unite(name, c('V1', 'V2', 'V3', 'V4'), sep = ' ') %>% 
-    mutate(name = str_trim(name)) %>% 
-    pull(name)
-
-############################################
-### Iterate and pull data for each sheet ###
-############################################
-
-
-# Add the names from above to each sheet
-
-y <- read_excel("data/PROV - Home Geography Table 8.1a   Weekly pay - Gross 2018.xls", 
-           sheet = 2, trim_ws = T, skip = 5)
+## set working directory to data files
 
 
 
+# Data are from
 
-names(y) <- x_names
-
-y %>% 
-    janitor::clean_names() %>% 
-    View()
-
-######################
-## Needs Completing ##
-######################
+browseURL('https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/earningsandworkinghours/datasets/placeofresidencebylocalauthorityashetable8')
 
 
- # 1. Import all data and clean
- # 2. Assign data with names
+if(Sys.info()[[1]] == 'Windows'){
+  setwd('C:/Users/emeador/OneDrive - SRUC/Data/ashe/home_geography/')
+} else { ## Check the Mac root directory
+  setwd('User/johne.meador/OneDrive - SRUC/Data/ashe/home_geography/')
+  
+}
 
 
-### Need to run this for all tables in the data directory
-
-# Import sheet names ------------
-
-
-sheet_names <- 
-    excel_sheets("data/PROV - Home Geography Table 8.1a   Weekly pay - Gross 2018.xls")
-
-worksheet_names_ls <- map(sheet_names, function(x){
-    alfa <- 
-        read_excel(
-    "data/PROV - Home Geography Table 8.1a   Weekly pay - Gross 2018.xls", 
-               sheet = x, 
-               trim_ws = T) %>% 
-        slice(1:4) %>% 
-        t(.) %>% 
-        as_tibble()
-    
-    alfa[is.na(alfa)] <- ''
-    
-    alfa %>% 
-        unite(name, c('V1', 'V2', 'V3', 'V4'), sep = ' ') %>% 
-        mutate(name = str_trim(name)) %>% 
-        pull(name)
-    
-})
-
-# Import sheets ------------
-
-home_geography_ls <- map(sheet_names, function(x){
-    read_excel("data/PROV - Home Geography Table 8.1a   Weekly pay - Gross 2018.xls", 
-               sheet = x, 
-               trim_ws = T) 
-    }) 
-
- ## Merge with names
-
-home_geography_ls_i <- map2(home_geography_ls,
-     worksheet_names_ls, 
-     function(x, y){
-    x %>% 
-        set_names(y) %>% 
-             set_names(make.unique(names(.))) %>% 
-             janitor::clean_names()
-})
-
-# add variable for binding
-
-map2_df(home_geography_ls_i[-1], 
-     sheet_names[-1], 
-     function(x, y){
-          x %>%
-             mutate(sheet = y)
-}) %>% 
-    drop_na(description) %>% 
-    select(-x, -x1, -x2) %>% 
-    filter(description != 'Description') %>% 
-    mutate_at(vars(number_of_jobsb_thousand:x90), list(~as.numeric(.))) %>% 
-    mutate_if(is.numeric, list(~round(., 2))) %>% 
-    View()
-
-
-# Map over all Table 8 files -------------
-
-dir.remove <- dir('data') %>% 
-    str_subset('2018 CV')
-
-ASHA_Table.8_xls_all <- dir('data')[!dir('data') %in% dir.remove] 
-
-ASHA_Table.8_xls_all <- glue::glue('data/{ASHA_Table.8_xls_all}')
+# Read, clean and format files ------
 
 
 
-
-# get sheet names
-sheet_names_ls <- map(ASHA_Table.8_xls_all, function(x){
-    excel_sheets(x) %>% 
-        .[-1]
-})
+x_files <- as.character(2002:2018)
 
 
-# get file names
-
-
-
-all_file_names_ls <- map(ASHA_Table.8_xls_all, function(x){
-    sheets <- excel_sheets(x)
-    map(sheets, function(y){
-       alfa <-  read_excel(
-            x, 
-            sheet = y, 
-            trim_ws = T) %>% 
-            slice(1:4) %>% 
-            t(.) %>% 
-            as_tibble()
-        alfa[is.na(alfa)] <- ''
-
-        alfa %>%
-            unite(name, c('V1', 'V2', 'V3', 'V4'), sep = ' ') %>%
-            mutate(name = str_trim(name)) %>%
-            pull(name)
-    })
-        
-
-    
-})
-
-# get all files
-
-all_file_ls <- 
-    map(ASHA_Table.8_xls_all, function(x){
-    sheets <- excel_sheets(x)
-    map(sheets, function(y){
-        alfa <-  read_excel(
-            x, 
-            sheet = y, 
-            trim_ws = T) %>% 
-            slice(5:nrow(.))
-    })
-    
-    
-    
-})
-
-
-map(all_file_ls, function(x){
-    map(x, length)
-})
-
-
-##############################
-#### Filter the list here ####
-##############################
-############################## 
-
-
-map(all_file_ls, function(x){
-    map(x, function(y){
-         y %>% 
-            select(-1)
-    })
-})
-
-
-
-
-names(all_file_ls)
- 
-names(all_file_ls) <- 
-    str_remove(ASHA_Table.8_xls_all, 
-           "data/PROV - Home Geography Table 8.") %>% 
-  str_remove_all('[[:digit:]]') %>% 
-  str_remove_all('\\ba\\b') %>% 
-  str_remove_all('.xls$') %>% 
-  str_remove_all('-') %>% 
-    str_squish() %>% 
-    str_to_lower() %>% 
+results <- map_df(x_files, possibly(function(x){
+  
+  
+  
+  setwd(glue('C:/Users/emeador/OneDrive - SRUC/Data/ashe/home_geography/{x}'))
+  
+  
+  # create column names
+  names_column <- c('description',
+                    'code',
+                    'number_jobs_k',
+                    'median',
+                    'median_percentage_change',
+                    'mean',
+                    'mean_percentage_change',
+                    glue('percentile_{seq(10,90,10)}'))
+  
+  # specify which sheets to pull
+  
+  names_sheet <- c('All',
+                   'Male',
+                   'Female',
+                   'Full-Time',
+                   'Part-Time',
+                   'Male Full-Time',
+                   'Male Part-Time',
+                   'Female Full-Time',
+                   'Female Part-Time')
+  
+  
+  
+  
+  
+  data_files <- dir() %>%
+    str_subset(glue('{x}.xls$'))
+  
+  
+  file_variables <- data_files %>%
+    str_remove("PROV - Home Geography Table 8.") %>%
+    str_remove_all('[[:digit:]]') %>%
+    str_remove_all('\\ba\\b') %>%
+    str_remove_all('.xls$') %>%
+    str_remove_all('-') %>%
+    str_squish() %>%
+    str_to_lower() %>%
     str_replace_all(' ', '_')
+  
+  alfa <- map2(data_files,file_variables, possibly(function(.x, .z){
+    map(names_sheet, function(.y){
+      read_excel(.x,
+                 sheet = .y,
+                 trim_ws = T,
+                 na = 'x',
+                 skip = 4) %>%
+        select(c(1:16)) %>%
+        set_names(names_column) %>%
+        mutate(sheet = .y) %>%
+        mutate_if(is.numeric, as.character)
+    } %>%
+      mutate(file = .z))
+    
+  }, NULL))
+  
+  
+  countries <- str_c(c('England','Scotland', 'Wales', 'Northern Ireland'))
+  
+  alfa %>%
+    flatten_df() %>%
+    select(file, sheet, everything()) %>%
+    mutate_at(vars(number_jobs_k:percentile_90), list(~parse_number(.)))%>%
+    mutate(country = case_when(
+      description %in% countries ~ description, T~NA_character_)) %>%
+    fill(country, .direction = 'down') %>%
+    mutate(year = x)
+  
+}, NULL))
 
 
-ls_df_names_eq_10 <- which(map(all_file_ls, length) == 10) %>% 
-    names()
-
-ls_names_eq_10 <- which(map(sheet_names_ls, length) == 9) 
-
-# pull names for each sheet for tables that have 10 sheets
-names_sheet_10 <- 
-    sheet_names_ls[ls_names_eq_10][1] %>% 
-    flatten_chr() %>% 
-    str_replace_all('-', '_') %>% 
-    str_replace_all(' ', '_') %>% 
-    str_to_lower() %>% 
-    .[-1]
 
 
+# Clean up some formatting ------
+
+###############
+## File Type ##
+###############
+
+file_to_remove <- str_c(c('^home_geography_table_._',
+                          '^home_geography_table_._',
+                          '^revised_home_geography_table_._'), collapse = '|')
+
+results_i <- results %>%
+  mutate(file = str_remove(file, file_to_remove),
+         file = str_remove(file, '^paid_'),
+         file = case_when(
+           str_detect(file, 'weekly_pay_basic') ~ 'basic_pay_including_other_pay',
+           T ~ file
+         ),
+         file = str_to_title(file)) %>%
+  filter(str_length(description) < 50) %>% 
+  mutate(file = str_replace_all(file, '_', ' '))
 
 
-df_eq_10_ls <- all_file_ls[ls_df_names_eq_10]
 
-for (i in seq_along(df_eq_10_ls)){
-    names(df_eq_10_ls[[i]]) <- names_sheet_10
+#################
+## Description ##
+#################
+
+
+
+
+results_ii <- results_i %>%
+  mutate(
+    description = str_remove_all(description, '\\bUA\\b'),
+    description = str_remove_all(description, '\\bCity of\\b'),
+    description = str_remove_all(description, '\\bMc\\b'),
+    description = str_replace_all(description, '\\band\\b', '&'),
+    description = str_replace_all(description, 'Cardiff / Caerdydd', 'Cardiff'),
+    description = str_remove_all(description, ','),
+    description = str_remove_all(description, '/.*$')) %>%
+  clean_council(description)%>%
+  mutate(description = str_remove_all(description, '\\bMc\\b'),
+         description = str_squish(description)) %>%
+  mutate(description = case_when(
+    str_detect(description, 'Scottish Borders') ~ 'Scottish Borders',
+    str_detect(description, 'Western Isles') ~ 'Eilean Siar',
+    T ~ description
+  )) %>% 
+  rename(area = description) %>% 
+  mutate(year = parse_number(year))
+
+
+
+ASHE_Table_8_Complete <- results_ii
+
+
+ASHE_Table_8_tidy <- ASHE_Table_8_Complete %>% 
+  gather(statistic, value, -c(file:number_jobs_k, year, country)) %>% 
+  mutate(statistic = str_replace_all(statistic, '_', ' '), 
+         statistic = str_to_title(statistic))
+
+
+
+# Save the data
+
+if(Sys.info()[[1]] == 'Windows'){
+  setwd('C:/Users/emeador/OneDrive - SRUC/Data/ashe/home_geography')
+} else {
+  setwd('Users/johne.meador/OneDrive - SRUC/Data/ashe/home_geography')
+  
 }
 
 
 
 
-all_file_names_ls[[1]][[2]] %>% 
-    str_replace_all('-', '_') %>% 
-    str_replace_all(' ', '_') %>% 
-    str_to_lower()
-
-
-
-column_names <- c('description', 
-  'code',
-  'number_jobs_in_k',
-  'median', 
-  'annual_median_change', 
-  'mean', 
-  'annual_mean_change', 
-  glue::glue('percentile_{seq(0, 100, 10)}'), 
-  'other_1',
-  'other_2')
+write_csv(ASHE_Table_8_Complete, 'ASHE_Table_8_Complete.csv')
+write_csv(ASHE_Table_8_tidy, 'ASHE_Table_8_tidy.csv')
 
 
 
 
-df_eq_10_ls 
 
-which(names(df_eq_10_ls) == 'notes')
-
-
-
-map(df_eq_10_ls, function(.x){
-    names(df_eq_10_ls) != 'notes'})
-
+if(Sys.info()[[1]] == 'Windows'){
+  setwd('C:/R/Twentry_five_years_on/')
+} else {
+  setwd('User/johne.meador/Documents/R/Twentry_five_years_on/')
+  
+}
 
 
-df_eq_10_ls[1:11][[1]] %>% names()
 
-map(df_eq_10_ls, function(.x){
-    map(.x, function(.x){
-        .x %>% 
-            length()
-    })    
-})
-
-
-map_if(df_eq_10_ls, is.data.frame, ~ .x %>% 
-           set_names(org_names),
-       .else = ~ map(.x, set_names, org_names))
-
-
-##########################################
-###  Need to filter the list of lists ####
-##########################################
 
 
 
