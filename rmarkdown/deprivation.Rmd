@@ -50,16 +50,57 @@ if (Sys.info()[[1]] == 'Windows') {
 ```
 
 
+```{r plot-defaults, echo=F, message=F, warning=F}
+
+pop_theme <- theme_classic()+
+    theme(text = element_text(size = 13.5, 
+                              color = 'black'), 
+          axis.text.x = element_text(angle = 45, hjust = 1), 
+          panel.grid.minor = element_blank(), 
+          axis.title.y = element_text(angle = 0), 
+          plot.margin = margin(1,1,1,1, 'cm'), 
+          strip.background = element_blank(), 
+          strip.text.y = element_text(angle = 0))
+
+
+
+case_study_cols <- c(Spectral[c(1, 7, 11)], 
+                     adjustcolor(Greys[2], .25))
+
+names(case_study_cols) <- c("Na h-Eileanan Siar", 
+                            "Northumberland",
+                            "Perth and Kinross", 
+                            "Other")
+```
+
 # Data
 Data on deprivation comes from the English Indix of Multiple Deprivation (https://www.gov.uk/government/statistics/english-indices-of-deprivation-2019) and the Scottish Index of Multiple Deprivation (https://simd.scot/2016/#/simd2016/BTTTFTT/9/-4.0000/55.9000/). These data are aggregated at a similar small-area output (SMO), which allows us to get more granularity from the data across England and Scotland. 
 
 The scores, which are used in calculating the index, are used -- ***not the index ranking***. For instance, one score used to determine income deprivation is the percentatge of people within a SMO that are income deprived. Index rankings themselves are not appropriate for comparing places across the two indexes as they are relational within countries (not between). 
 
-We cover employment and income deprivation in the following sections. 
+We cover employment and income deprivation in the following sections. Each deprivation area includes an overview table and map as well as general statistics. Tables allow for statistics to be easily compared across case study areas, whilst maps allow for the spatial differences within case study local authorities to be more easily identifiable. 
+
+## Employment Deprivation 
 ```{r employment-overview-scratch, echo=F, warning=F, message=F}
 
 scotland_dep_df <- read_csv('/Users/johne.meador/OneDrive - SRUC/Data/deprivation/scotland/simd2016_withgeog/simd2016_withinds.csv') %>% 
   clean_names()
+
+england_dep_df <- read.xlsx('/Users/johne.meador/OneDrive - SRUC/Data/deprivation/england/england_dep_scores_2019.xlsx', sheet = 'IoD2019 Scores') %>% 
+  as_tibble() %>% 
+  clean_names()
+
+
+dep_england_tidy <- england_dep_df %>% 
+  select(name = local_authority_district_name_2019, 
+         income_rate = income_score_rate, 
+         employment_rate = employment_score_rate)%>% 
+  mutate(case_study = case_when(
+    str_detect(name, 'Northumberland')~'Northumberland', 
+    T ~ 'Rest of England-Scotland'
+  )) 
+
+
 
 dep_scotland_tidy <- scotland_dep_df %>% 
   select(name = council_area, 
@@ -69,25 +110,17 @@ dep_scotland_tidy <- scotland_dep_df %>%
   mutate(employment_rate = parse_number(employment_rate)/100, 
          income_rate = parse_number(income_rate)/100) %>% 
   mutate(case_study = case_when(
-    str_detect(name, 'Perth')~'Perth and Kinross', 
-    str_detect(name, 'Na_h-Eileanan_an_Iar')~'Outer Hebrides',
-    T ~ 'Other'
+    str_detect(name, 'Perth_and_Kinross')~'Perth and Kinross', 
+    str_detect(name, 'Na_h-Eileanan_an_Iar')~'Na h-Eileanan Siar',
+    T ~ 'Rest of England-Scotland'
   
-  )) %>% 
-  arrange(case_study)
-
-dep_scotland_tidy %>% 
-  count(name, sort = T)
+  )) 
 
 
-dep_scotland_tidy %>% 
-  ggplot(aes(employment_rate, income_rate, color = case_study))+
-  geom_point()
-
-
+income_employ_dep <- dep_england_tidy %>% 
+  bind_rows(dep_scotland_tidy)
 
 ```
-
 
 ```{r employment-map-scratch, echo=FALSE, warning=F, message=F}
 
@@ -142,7 +175,22 @@ place_names <- c('Perthsire',
 
 ```
 
+### Employment deprivation definitions
+***English Indeces of Multiple Deprivation*** - The Employment Deprivation Domain measures the proportion of the working-age population in an area involuntarily excluded from the labour market. This includes people who would like to work but are unable to do so due to unemployment, sickness or disability, or caring responsibilities.
 
+
+```{r employment-table, echo=F, warning=F, message=F}
+
+income_employ_dep %>% 
+  group_by(case_study) %>% 
+  summarise(Median = median(employment_rate, na.rm = T), 
+          Mean = mean(employment_rate, na.rm = T), 
+          Minimum = min(employment_rate, na.rm = T), 
+          Maximum = max(employment_rate, na.rm = T)) %>% 
+  mutate_if(is.numeric, list(~percent(.))) %>% 
+  rename('Case study area' = case_study) %>% 
+  flextable(cwidth = c(2,1,1,1,1))
+```
 
 
 ```{r employment-map, echo=FALSE, warning=F, message=F, fig.width=10, fig.height=10}
@@ -201,9 +249,24 @@ north_tyneside_employment <- tm_shape(employment_ls[[3]]) +
 ```
 
 
-
-
 ## Income Deprivation 
+
+```{r income-table, echo=F, warning=F, message=F}
+dep_england_tidy %>% 
+  bind_rows(dep_scotland_tidy) %>% 
+  group_by(case_study) %>% 
+  summarise(Median = median(income_rate, na.rm = T), 
+            Mean = mean(income_rate, na.rm = T), 
+            Minimum = min(income_rate, na.rm = T), 
+            Maximum = max(income_rate, na.rm = T)) %>% 
+  mutate_if(is.numeric, list(~percent(.))) %>% 
+  rename('Case study area' = case_study) %>% 
+  flextable(cwidth = c(2,1,1,1,1))
+
+
+```
+
+
 ```{r income-map, echo=FALSE, warning=F, message=F, fig.width=10, fig.height=10}
 
 title_ls <- glue('{place_names} - Income Deprivation Rate')
