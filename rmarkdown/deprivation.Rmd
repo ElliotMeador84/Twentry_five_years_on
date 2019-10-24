@@ -10,6 +10,7 @@ editor_options:
 ```{r setup, echo=FALSE, warning=F, message=F}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
 ```{r data-library, echo=F, message=F, warning=F, results='hide'}
 library(tidyverse)
 library(janitor)
@@ -30,6 +31,13 @@ if (Sys.info()[[1]] == 'Windows') {
     
     dep_scotland <- st_read('C:/Users/emeador/OneDrive - SRUC/Data/deprivation/scotland/scottish_deprivation_score_sf.shp')
     
+scotland_dep_df <- read_csv('C:/Users/emeador/OneDrive - SRUC/Data/deprivation/scotland/simd2016_withgeog/simd2016_withinds.csv') %>% 
+  clean_names()
+
+england_dep_df <- read.xlsx('C:/Users/emeador/OneDrive - SRUC/Data/deprivation/england/england_dep_scores_2019.xlsx', sheet = 'IoD2019 Scores') %>% 
+  as_tibble() %>% 
+  clean_names()
+
 
     source('C:/Users/emeador/OneDrive - SRUC/all_functions.R')
     
@@ -38,6 +46,14 @@ if (Sys.info()[[1]] == 'Windows') {
         dep_england <- st_read('/Users/johne.meador/OneDrive - SRUC/Data/deprivation/england/english_deprivation_score_sf.shp')
     
     dep_scotland <- st_read('/Users/johne.meador/OneDrive - SRUC/Data/deprivation/scotland/scottish_deprivation_score_sf.shp')
+    
+    
+    scotland_dep_df <- read_csv('/Users/johne.meador/OneDrive - SRUC/Data/deprivation/scotland/simd2016_withgeog/simd2016_withinds.csv') %>% 
+  clean_names()
+
+england_dep_df <- read.xlsx('/Users/johne.meador/OneDrive - SRUC/Data/deprivation/england/england_dep_scores_2019.xlsx', sheet = 'IoD2019 Scores') %>% 
+  as_tibble() %>% 
+  clean_names()
 
     
     
@@ -83,12 +99,7 @@ We cover employment and income deprivation in the following sections. Each depri
 ## Employment Deprivation 
 ```{r employment-overview-scratch, echo=F, warning=F, message=F}
 
-scotland_dep_df <- read_csv('/Users/johne.meador/OneDrive - SRUC/Data/deprivation/scotland/simd2016_withgeog/simd2016_withinds.csv') %>% 
-  clean_names()
 
-england_dep_df <- read.xlsx('/Users/johne.meador/OneDrive - SRUC/Data/deprivation/england/england_dep_scores_2019.xlsx', sheet = 'IoD2019 Scores') %>% 
-  as_tibble() %>% 
-  clean_names()
 
 
 dep_england_tidy <- england_dep_df %>% 
@@ -189,7 +200,8 @@ income_employ_dep %>%
           Maximum = max(employment_rate, na.rm = T)) %>% 
   mutate_if(is.numeric, list(~percent(.))) %>% 
   rename('Case study area' = case_study) %>% 
-  flextable(cwidth = c(2,1,1,1,1))
+  flextable(cwidth = c(2,1,1,1,1)) %>% 
+  set_caption('Proportion of Employment Deprivation in case study ares')
 ```
 
 
@@ -261,7 +273,8 @@ dep_england_tidy %>%
             Maximum = max(income_rate, na.rm = T)) %>% 
   mutate_if(is.numeric, list(~percent(.))) %>% 
   rename('Case study area' = case_study) %>% 
-  flextable(cwidth = c(2,1,1,1,1))
+  flextable(cwidth = c(2,1,1,1,1)) %>% 
+  set_caption('Proportion of Employment Deprivation in case study ares')
 
 
 ```

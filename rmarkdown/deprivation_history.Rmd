@@ -1,0 +1,141 @@
+---
+title: "Historical Deprivation"
+author: "Elliot Meador"
+date: "24/10/2019"
+output: word_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+
+
+```{r}
+library(tidyverse)
+library(janitor)
+
+scotland_files <- list.files('/Users/emeador/OneDrive - SRUC/Data/deprivation/scotland/historic/', full.names = T)
+
+scotalnd_lookup <- read_csv('/Users/emeador/OneDrive - SRUC/Data/lookup/Local_authority_dz_int_lookup.csv') %>% 
+    clean_names()
+
+england_files <- list.files('/Users/emeador/OneDrive - SRUC/Data/deprivation/england/historic/', full.names = T)
+
+
+england_df_ls <- map(england_files, function(x){
+    read_csv(x) %>% 
+       clean_names() 
+        
+})
+
+scotland_df_ls <- map(scotland_files, function(x){
+    read_csv(x) %>% 
+       clean_names() 
+        
+})
+
+
+
+england_like_names <- names(england_df_ls[[1]]) %>% 
+    intersect(names(england_df_ls[[2]])) %>% 
+    intersect(names(england_df_ls[[3]]))
+
+
+
+
+england_df_ls.i <- map2(england_df_ls, c(2009,2015,2019), function(x, y){
+   x %>% 
+        select(post_2009_la_na = contains('name'), 
+               england_like_names) %>% 
+       rename(local_authority = post_2009_la_na2) %>% 
+       select(-post_2009_la_na1) %>% 
+       mutate(year = y)
+})
+
+
+
+england_df_ls.i[[1]] <- 
+    england_df_ls.i[[1]] %>% 
+    select(-post_2009_la_na3)
+
+
+
+
+england_deprivation_scores <- england_df_ls.i %>% 
+    bind_rows()
+
+
+
+map(scotland_df_ls, function(x){
+    glimpse(x)
+    
+})
+
+#
+
+scotland_deprivation_scores.i <- map2(scotland_df_ls, c(2009,2012,2016), function(.x, .y){
+ y <-    .x %>% 
+        select(datazone = contains('data_zone'), 
+               income_rate = contains('inc_rate'), 
+               contains('_rate'), 
+               contains('_score'))
+ y %>% 
+     select(names(y)) %>% 
+     mutate(year = .y)
+}) 
+
+
+scotland_deprivation.i <- scotland_deprivation_scores.i %>% 
+    map(function(x){
+     names(x) <-    names(x) %>% 
+            str_remove_all('[:digit:]') %>% 
+            str_remove_all('^simd') %>% 
+            str_remove_all('^v') %>% 
+            str_remove_all('_')
+     x %>% 
+         select(order(names(x))) 
+     
+    }) %>% 
+    bind_rows()
+
+
+
+
+
+
+
+scotland_deprivation_scores <- 
+    scotland_deprivation.i %>% 
+    left_join(scotalnd_lookup %>% 
+                  select(data_zone, 
+                         local_authority), by = c('datazone' = 'data_zone'))
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

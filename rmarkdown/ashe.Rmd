@@ -17,6 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(scales)
 library(glue)
+library(flextable)
 
 if(Sys.info()[[1]] == 'Windows'){
   
@@ -37,11 +38,12 @@ pop_theme <- theme_bw()+
           axis.title.y = element_text(angle = 0), 
           plot.margin = margin(1,1,1,1, 'cm'), 
           strip.background = element_blank(), 
-          strip.text.y = element_text(angle = 0))
+          strip.text.y = element_text(angle = 0), 
+          legend.position = 'bottom')
 
 
 
-case_study_cols <- c(Spectral[c(1, 7, 11)], 
+case_study_cols <- c(Spectral[c(1, 4, 11)], 
                      adjustcolor(Greys[2], .25))
 
 names(case_study_cols) <- c('Perth Kinross', 
@@ -59,15 +61,22 @@ case_study <- c('Perth Kinross',
                 'Northumberland', 
                 'Eilean Siar')
 
+
+
+
+
 example <- ASHE_Table_8_tidy %>% 
     filter(area  %in% case_study, 
            statistic == 'Median')
 
 
-
 example_tidy <- example %>% 
   arrange(area, sheet, year) %>% 
-    filter(sheet == 'All') %>% 
+    filter(sheet == 'All', 
+           !file %in% c('Overtime pay', 
+                      'Hours worked overtime', 
+                      'Annual pay incentive'), 
+           year >= 2002) %>% 
     mutate(base = case_when(
         year == min(year, na.rm = T) ~ value, 
         T ~ NA_real_
@@ -76,43 +85,104 @@ example_tidy <- example %>%
     mutate(diff = value - base) %>% 
     split(.$file)
 
+```
+
+
+# Data
+
+Data presented below comes from the Annual Survey of Hours and Earnings (ASHE). The ASHE is conducted once yearly across the UK. The survey dates back to 2002. A survey questionnaire is sent to businesses (owners) and they are asked to complete information about the business and employees. Because it is a survey, there are cases when the sample is too low to publish accurate numbers. This occurs due to response error as respondents are not required to send in their survey to researchers. 
+
+The local authority of Na h-Eileanan Siar (Outer Hebrides), where Harris is located, has low response numbers for some years. This information is left blank in the published ASHE database. Therefore, the time series plots shown in Section 2 use a interpolation line to **smooth** over missing data points. 
+
+In the following section, we provide general statistics on the local authority areas and where they sit within the wider UK context. 
+
+
+# Section 1
+
+In general, pay has increased for all case study local authority areas, and there has not been a drastic change in number of hours worked. Workers in Na h-Eileanan Siar and Perthshire have worked fewer hours overtime, whilst workers in Northumberland are working about the same number of hours.  
+Median annual pay is higest in Perthsire, followed closely by Northumberland. 
+
+```{r rest-uk, echo=F, warning=F, message=F, fig.width=12, fig.height=12}
+case_study_df <- ASHE_Table_8_tidy %>% 
+  mutate(case_study = case_when(
+    str_detect(area, 'Perth Kinross')~'Perth and Kinross', 
+    str_detect(area, 'Eilean Siar')~'Na h-Eileanan Siar',
+    str_detect(area, 'Northumberland')~'Northumberland',
+    T ~ 'Rest of UK'
+  
+  )) %>% 
+  drop_na(country)
 
 
 
+case_study_df %>% 
+  filter(year >= max(year)-3, 
+         sheet == 'All') %>% 
+  group_by(file, case_study) %>% 
+  summarise(mean = mean(value, na.rm = T)) %>% 
+  rowid_to_column() %>% 
+  spread(case_study, mean) %>% 
+  fill(rowid:"Rest of UK") %>% 
+  drop_na() %>% 
+  mutate_if(is.numeric, function(x)dollar(x, prefix = '£')) %>% 
+  select(-rowid) %>% 
+  rename('Hours and Earnings\nIndicator' = file) %>% 
+  flextable(cwidth = c(2, 1.25, 1.25, 1.25, 1.25)) %>% 
+  set_caption('Comparing case study areas to the rest of the UK - 2015 through 2018 mean values shown')
 
 
 
 ```
 
 
+# Section 2 - Change over time
+
+```{r plots, echo=F, warning=F, message=F, fig.width=12, fig.height=12}
 
 
-
-```{r plots, echo=F, warning=F, message=F, fig.width=14, fig.height=14}
-
-map2(example_tidy,names(example_tidy), function(x, y){
-    
-x %>% 
+bind_rows(example_tidy) %>% 
+  filter(!file %in% c('Annual pay incentive', 
+                      'Overrtime pay')) %>% 
     ggplot(aes(year, diff, color = area, group = area))+
-    geom_line(size = 1.35)+ 
-    geom_point(size = 3)+
-    scale_y_continuous(labels = function(x) glue('£{comma(x)}'))+
+    geom_hline(yintercept = 0, linetype = 4)+
+    geom_smooth(se = F, size = 2.5)+
     scale_color_manual(values = case_study_cols, 
                        name = 'Case Study Local Authority')+
-    facet_wrap(~sheet, scales = 'free')+
+    facet_wrap(~file, scales = 'free')+
     pop_theme+
     theme(legend.position = 'bottom')+
-    labs(title = y, 
+    labs(title = 'Yearly change', 
          x = 'Year', 
-         y = 'Median Change\nover time')
-})
+         y = 'Median Change\nover time', 
+         caption = 'Horizontal line represents value in 2002')
+
+
 ```
 
 
 
+```{r facet-plots, echo=F, warning=F, message=F, fig.width=12, fig.height=12}
+
+
+example %>%
+  filter(sheet == 'All') %>% 
+  group_by(file, area) %>% 
+  # filter(value %in% c(min(value, na.rm = T), max(value, na.rm = T))) %>% 
+    filter(!file %in% c('Annual pay incentive', 
+                      'Overtime pay')) %>% 
+  arrange(file, area) %>% 
+  ggplot(aes(year, value, color = area))+
+  geom_line(size = 1.25)+
+  geom_point(size = 3.5)+
+   scale_color_manual(values = case_study_cols, 
+                       name = 'Case Study Local Authority')+
+  facet_wrap(~file, scales = 'free', ncol = 3)+
+  pop_theme+
+  labs(title = 'Minimum and Maximum values over time')
 
 
 
+```
 
 
 
