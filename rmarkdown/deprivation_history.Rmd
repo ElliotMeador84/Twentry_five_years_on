@@ -178,9 +178,6 @@ england_tidy <- england_deprivation_scores %>%
 
 ```{r scotland-facet-imd, echo=F, message=F, warning=F, fig.width=11, fig.height=11}
 
-
-
-
 scotland_deprivation_scores %>% 
   ungroup() %>%
   group_by(case_study,key, year) %>% 
@@ -200,6 +197,8 @@ scotland_deprivation_scores %>%
        y = 'Median\nvalue', 
        color = 'Case study area')
 ```
+
+
 
 
 
