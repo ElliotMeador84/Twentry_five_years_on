@@ -16,13 +16,19 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 
-```{r}
+```{r scratch, echo=F, message=F, warning=F}
 library(tidyverse)
 library(janitor)
+library(ggsci)
+library(openxlsx)
+
+
+source('/Users/emeador/OneDrive - SRUC/all_functions.R')
+
 
 scotland_files <- list.files('/Users/emeador/OneDrive - SRUC/Data/deprivation/scotland/historic/', full.names = T)
 
-scotalnd_lookup <- read_csv('/Users/emeador/OneDrive - SRUC/Data/lookup/Local_authority_dz_int_lookup.csv') %>% 
+scotland_lookup <- read_csv('/Users/emeador/OneDrive - SRUC/Data/lookup/Local_authority_dz_int_lookup.csv') %>% 
     clean_names()
 
 england_files <- list.files('/Users/emeador/OneDrive - SRUC/Data/deprivation/england/historic/', full.names = T)
@@ -41,43 +47,7 @@ scotland_df_ls <- map(scotland_files, function(x){
 })
 
 
-
-england_like_names <- names(england_df_ls[[1]]) %>% 
-    intersect(names(england_df_ls[[2]])) %>% 
-    intersect(names(england_df_ls[[3]]))
-
-
-
-
-england_df_ls.i <- map2(england_df_ls, c(2009,2015,2019), function(x, y){
-   x %>% 
-        select(post_2009_la_na = contains('name'), 
-               england_like_names) %>% 
-       rename(local_authority = post_2009_la_na2) %>% 
-       select(-post_2009_la_na1) %>% 
-       mutate(year = y)
-})
-
-
-
-england_df_ls.i[[1]] <- 
-    england_df_ls.i[[1]] %>% 
-    select(-post_2009_la_na3)
-
-
-
-
-england_deprivation_scores <- england_df_ls.i %>% 
-    bind_rows()
-
-
-
-map(scotland_df_ls, function(x){
-    glimpse(x)
-    
-})
-
-#
+    #### Scotland ####
 
 scotland_deprivation_scores.i <- map2(scotland_df_ls, c(2009,2012,2016), function(.x, .y){
  y <-    .x %>% 
@@ -106,16 +76,97 @@ scotland_deprivation.i <- scotland_deprivation_scores.i %>%
 
 
 
+datazone_lookup <- read_csv('/Users/emeador/OneDrive - SRUC/Data/lookup/scotland_datazone_2001_2011.csv') 
+
+
+
 
 
 
 
 scotland_deprivation_scores <- 
     scotland_deprivation.i %>% 
-    left_join(scotalnd_lookup %>% 
-                  select(data_zone, 
-                         local_authority), by = c('datazone' = 'data_zone'))
+    left_join(datazone_lookup %>% 
+  select(datazone = value, local_authority)) %>% 
+  select(-crimerate, -crimescore)
 
+
+
+
+
+scotland_deprivation_scores <- scotland_deprivation_scores %>% 
+  gather(key, value, -local_authority, -year, -datazone) %>% 
+  drop_na(local_authority) %>% 
+  mutate(key = case_when(
+    str_detect(key, 'accessscore') ~ 'Access\n(Average drive time to services)',
+    str_detect(key, 'educscore') ~ 'Education\n(Pupal attendance, attainment of leavers, working-age without\nqualifications)',
+    str_detect(key, 'emprate') ~ 'Employment\n(Proportion of people who are income deprived)',
+    str_detect(key, 'hlthscore') ~ 'Health\n(Composite of health indicators)',
+    str_detect(key, 'housescore') ~ 'Health\n(Proportion overcrowding and no heat)',
+    str_detect(key, 'incomerate') ~ 'Income\n(Proportion of working-age who are employment deprived)',
+  )) %>% 
+  mutate(case_study = case_when(
+    str_detect(local_authority, 'Perth and Kinross')~'Perthshire', 
+    str_detect(local_authority, 'Na h-Eileanan an Iar')~'Na h-Eileanan Siar',
+    T ~ 'Rest of Scotland'
+  )) 
+
+
+
+
+
+    #### England ####
+
+
+names(england_df_ls[[1]])[10] <- 'income_score_rate'
+names(england_df_ls[[1]])[12] <- 'employment_score_rate'
+
+
+
+england_like_names <- names(england_df_ls[[1]]) %>% 
+    intersect(names(england_df_ls[[2]])) %>% 
+    intersect(names(england_df_ls[[3]]))
+
+
+
+
+england_df_ls.i <- map2(england_df_ls, c(2009,2015,2019), function(x, y){
+   x %>% 
+        select(post_2009_la_na = contains('name'), 
+               england_like_names, 
+               contains('income_')) %>% 
+       rename(local_authority = post_2009_la_na2) %>% 
+       select(-post_2009_la_na1) %>% 
+       mutate(year = y)
+})
+
+
+
+england_deprivation_scores <- england_df_ls.i %>% 
+    bind_rows()
+
+
+
+england_tidy <- england_deprivation_scores %>% 
+  select(-contains('rank')) %>% 
+  gather(key, value, -local_authority, -year) %>% 
+  mutate(case_study = case_when(
+    str_detect(local_authority, 'Northumberland') ~ 'Northumberland', 
+    T ~ 'Rest of England'
+  )) %>% 
+  mutate(key = str_replace_all(key, '_', ' '), 
+         key = str_to_title(key),
+         key = str_remove_all(key, 'Score'), 
+         key = str_squish(key)) %>% 
+  filter(!str_detect(key, 'Sub')) %>% 
+  mutate(key = case_when(
+    str_detect(key, 'Income Rate') ~ 'Income Rate\n(Proportion of popualtion out-of-work or have low earnings)', 
+    str_detect(key, 'Employment Rate') ~ 'Employment Rate\n(Propotion of working-age population that is involuntarily\nexcluded fom labour market)', 
+    str_detect(key, 'Education Skills And Training') ~ 'Education Skills and Training\n(Lack of attainment and skills in population)', 
+    str_detect(key, 'Health Deprivation And Disability') ~ 'Health Deprivation and Disability\n(Risk of premature death and impairment of quality of life)', 
+    str_detect(key, 'Barriers To Housing And Services') ~ 'Barriers to Housing and Services\n(Physical and Financial accessibility of housing and local services)', 
+    str_detect(key, 'Living Environment') ~ 'Living Environment\n(Measures the quality of the local environment)'
+  ))
 
 
 
@@ -124,6 +175,57 @@ scotland_deprivation_scores <-
 
 
 
+
+```{r scotland-facet-imd, echo=F, message=F, warning=F, fig.width=11, fig.height=11}
+
+
+
+
+scotland_deprivation_scores %>% 
+  ungroup() %>%
+  group_by(case_study,key, year) %>% 
+  summarise(median = median(value, na.rm = T)) %>% 
+  ggplot(aes(year, median, group = case_study, color = case_study))+
+  geom_line(size = 1.5)+
+  geom_point(size = 4.75)+
+  scale_x_continuous(breaks = 2009:2019)+
+  facet_wrap(~key, ncol = 2, scales = 'free_y')+
+  scale_color_d3()+
+  theme_bw()+
+  theme(panel.grid = element_blank(), 
+        strip.background = element_blank(), 
+        legend.position = 'bottom')+
+  labs(title = 'Comparing Scottish Domains of Deprivation Over Time', 
+       x = 'Year', 
+       y = 'Median\nvalue', 
+       color = 'Case study area')
+```
+
+
+
+```{r england-facet-imd, echo=F, message=F, warning=F, fig.width=11, fig.height=11}
+
+
+england_tidy %>% 
+  filter(!str_detect(key, 'Sub')) %>% 
+  ungroup() %>%
+  group_by(case_study,key, year) %>% 
+  summarise(median = as.numeric(median(value, na.rm = T))) %>% 
+  ggplot(aes(year, median, group = case_study, color = case_study))+
+  geom_line(size = 1.5)+
+  geom_point(size = 4.75)+
+  scale_x_continuous(breaks = 2009:2019)+
+  facet_wrap(~key, ncol = 2, scales = 'free_y')+
+  scale_color_d3()+
+  theme_bw()+
+  theme(panel.grid = element_blank(), 
+        strip.background = element_blank(), 
+        legend.position = 'bottom')+
+  labs(title = 'Comparing English Domains of Deprivation Over Time', 
+       x = 'Year', 
+       y = 'Median\nvalue', 
+       color = 'Case study area')
+```
 
 
 
