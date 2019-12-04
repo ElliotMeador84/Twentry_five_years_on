@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r data-library, echo=F, message=F, warning=F, results='hide'}
+library(ggplot2)
 library(tidyverse)
 library(janitor)
 library(openxlsx)
@@ -24,43 +25,23 @@ library(sf)
 library(tmap)
 library(tmaptools)
 
-if (Sys.info()[[1]] == 'Windows') {
+
+source('/Users/emeador/OneDrive - SRUC/all_functions.R')
     ## Deprivation Data
 
-    dep_england <- st_read('C:/Users/emeador/OneDrive - SRUC/Data/deprivation/england/english_deprivation_score_sf.shp')
+    dep_england <- st_read('/Users/emeador/OneDrive - SRUC/Data/deprivation/england/english_deprivation_score_sf.shp')
     
-    dep_scotland <- st_read('C:/Users/emeador/OneDrive - SRUC/Data/deprivation/scotland/scottish_deprivation_score_sf.shp')
+    dep_scotland <- st_read('/Users/emeador/OneDrive - SRUC/Data/deprivation/scotland/scottish_deprivation_score_sf.shp')
     
-scotland_dep_df <- read_csv('C:/Users/emeador/OneDrive - SRUC/Data/deprivation/scotland/simd2016_withgeog/simd2016_withinds.csv') %>% 
+scotland_dep_df <- read_csv('/Users/emeador/OneDrive - SRUC/Data/deprivation/scotland/simd2016_withgeog/simd2016_withinds.csv') %>% 
   clean_names()
 
-england_dep_df <- read.xlsx('C:/Users/emeador/OneDrive - SRUC/Data/deprivation/england/england_dep_scores_2019.xlsx', sheet = 'IoD2019 Scores') %>% 
+england_dep_df <- read.xlsx('/Users/emeador/OneDrive - SRUC/Data/deprivation/england/england_dep_scores_2019.xlsx', sheet = 'IoD2019 Scores') %>% 
   as_tibble() %>% 
   clean_names()
 
 
-    source('C:/Users/emeador/OneDrive - SRUC/all_functions.R')
-    
-} else {
-
-        dep_england <- st_read('/Users/johne.meador/OneDrive - SRUC/Data/deprivation/england/english_deprivation_score_sf.shp')
-    
-    dep_scotland <- st_read('/Users/johne.meador/OneDrive - SRUC/Data/deprivation/scotland/scottish_deprivation_score_sf.shp')
-    
-    
-    scotland_dep_df <- read_csv('/Users/johne.meador/OneDrive - SRUC/Data/deprivation/scotland/simd2016_withgeog/simd2016_withinds.csv') %>% 
-  clean_names()
-
-england_dep_df <- read.xlsx('/Users/johne.meador/OneDrive - SRUC/Data/deprivation/england/england_dep_scores_2019.xlsx', sheet = 'IoD2019 Scores') %>% 
-  as_tibble() %>% 
-  clean_names()
-
-    
-    
-    source('/Users/johne.meador/OneDrive - SRUC/all_functions.R')
-    
-}
-
+   
 
 
 ```
@@ -68,15 +49,18 @@ england_dep_df <- read.xlsx('/Users/johne.meador/OneDrive - SRUC/Data/deprivatio
 
 ```{r plot-defaults, echo=F, message=F, warning=F}
 
-pop_theme <- theme_classic()+
+pop_theme <- theme_bw()+
     theme(text = element_text(size = 13.5, 
                               color = 'black'), 
-          axis.text.x = element_text(angle = 45, hjust = 1), 
           panel.grid.minor = element_blank(), 
-          axis.title.y = element_text(angle = 0), 
+          axis.title.y = element_text(angle = 0, hjust = 1, face = 'italic'),
           plot.margin = margin(1,1,1,1, 'cm'), 
           strip.background = element_blank(), 
-          strip.text.y = element_text(angle = 0))
+          strip.text.y = element_text(angle = 0, hjust = 0), 
+          legend.position = 'bottom', 
+          plot.caption = element_text(hjust = 0, face= "italic"), #Default is hjust=1
+        plot.title.position = "plot", #NEW parameter. Apply for subtitle too.
+        plot.caption.position =  "plot")
 
 
 
@@ -94,7 +78,6 @@ Data on deprivation comes from the English Indix of Multiple Deprivation (https:
 
 The scores, which are used in calculating the index, are used -- ***not the index ranking***. For instance, one score used to determine income deprivation is the percentatge of people within a SMO that are income deprived. Index rankings themselves are not appropriate for comparing places across the two indexes as they are relational within countries (not between). 
 
-We cover employment and income deprivation in the following sections. Each deprivation area includes an overview table and map as well as general statistics. Tables allow for statistics to be easily compared across case study areas, whilst maps allow for the spatial differences within case study local authorities to be more easily identifiable. 
 
 ## Employment Deprivation 
 ```{r employment-overview-scratch, echo=F, warning=F, message=F}
@@ -105,7 +88,7 @@ We cover employment and income deprivation in the following sections. Each depri
 dep_england_tidy <- england_dep_df %>% 
   select(name = local_authority_district_name_2019, 
          income_rate = income_score_rate, 
-         employment_rate = employment_score_rate)%>% 
+         employment_rate = employment_score_rate) %>% 
   mutate(case_study = case_when(
     str_detect(name, 'Northumberland')~'Northumberland', 
     T ~ 'Rest of England-Scotland'
@@ -135,8 +118,10 @@ income_employ_dep <- dep_england_tidy %>%
 
 ```{r employment-map-scratch, echo=FALSE, warning=F, message=F}
 
-north_tyneside_sf <-  dep_england %>% 
-    filter(str_detect(lso11nm, 'North Tyneside'))
+
+
+northumberland_sf <-  dep_england %>% 
+    filter(str_detect(lso11nm, 'Northumberland'))
 
 
 scotland_sf <- dep_scotland %>% 
@@ -145,7 +130,7 @@ scotland_sf <- dep_scotland %>%
               list(~parse_number(as.character(.))/100))
 
 
-perthshire<- scotland_sf %>% 
+perthshire <- scotland_sf %>% 
     filter(str_detect(concl_r, 
                       'Perth_and_Kinross'))  %>% 
     select(Name, contains('emp'), 
@@ -163,31 +148,22 @@ Na_h_Eileanan_an_Iar<- scotland_sf %>%
     rename(employment_rate = emplymnt_r)
 
 
-north_tyneside_employment <- north_tyneside_sf %>% 
+
+northumberland_employment <- northumberland_sf %>% 
     select(Name = lso11nm, contains('emp'), 
            income_rate = incm_dprvt) %>% 
     rename(employment_rate = emp__)
 
 
-union_ls <- map(list(perthshire, 
-                     Na_h_Eileanan_an_Iar,    north_tyneside_employment), 
-                function(x){
-    st_union(x)
-}) %>% 
-    set_names(c('perthshire_union', 
-                'nah_eileanan_union', 
-                'north_tyneside_union'))
 
-
-place_names <- c('Perthsire', 
-       'Nah Eileanan an Iar', 
-       'North Tyneside')
+place_names <- c('Perth and Kinross', 
+       'Outer Hebrides', 
+       'Northumberland')
 
 
 ```
 
 ### Employment deprivation definitions
-***English Indeces of Multiple Deprivation*** - The Employment Deprivation Domain measures the proportion of the working-age population in an area involuntarily excluded from the labour market. This includes people who would like to work but are unable to do so due to unemployment, sickness or disability, or caring responsibilities.
 
 
 ```{r employment-table, echo=F, warning=F, message=F}
@@ -205,60 +181,44 @@ income_employ_dep %>%
 ```
 
 
-```{r employment-map, echo=FALSE, warning=F, message=F, fig.width=10, fig.height=10}
+```{r employment-map, echo=FALSE, warning=F, message=F, fig.width=16, fig.height=6}
 
-employment_ls <- list(perthshire, Na_h_Eileanan_an_Iar, north_tyneside_employment)
+employment_ls <- list(perthshire,
+                      Na_h_Eileanan_an_Iar,
+                      northumberland_employment)
+
+tmap_style("gray")
+title_ls <- glue('{place_names}')
 
 
-title_ls <- glue('{place_names} - Employment Rate')
-
-    
-perth_unemployment <- tm_shape(employment_ls[[1]]) +
+employment_maps <- map(1:3, function(x){
+  tm_shape(employment_ls[[x]]) +
     tm_fill('employment_rate',
-                palette = 'YlGnBu', 
-                style=c("fixed"), 
-                breaks = seq(0, .6, .05), 
-            title  = 'Unemployment Rate', 
+            title  = 'Unemployment Rate',
+            palette = '-YlGnBu',
+            style = 'log10',
             legend.format=
-                list(fun=function(x) {paste0(x*100, "%")})) +
-    tm_shape(union_ls[[1]])+
-    tm_borders()+
+                list(fun=function(x) {paste0(round(x, 2)*100, "%")})) +
     tm_scale_bar()+
-    tm_layout(title = title_ls[[1]], legend.frame = T)
-    
-eileanan_unemployment <- tm_shape(employment_ls[[2]]) +
-    tm_fill('employment_rate',
-                palette = 'YlGnBu', 
-                style=c("fixed"), 
-                breaks = seq(0, .6, .05), 
-            title  = 'Unemployment Rate', 
-            legend.format=
-                list(fun=function(x) {paste0(x*100, "%")})) +
-    tm_shape(union_ls[[2]])+
-    tm_borders()+
-    tm_scale_bar()+
-    tm_layout(title = title_ls[[2]], legend.frame = T)
+    tm_layout(title = title_ls[[x]],
+              legend.frame = T,
+              legend.bg.color = 'white',
+              asp = 1)
+})
+
+tmap_arrange(employment_maps)
 
 
+employment_map_path <- glue('/Users/emeador/OneDrive - SRUC/Twenty_five_years_on/png/maps/employment/{place_names}_income.png')
 
-north_tyneside_employment <- tm_shape(employment_ls[[3]]) +
-    tm_fill('employment_rate',
-                palette = 'YlGnBu', 
-                style=c("fixed"), 
-                breaks = seq(0, .6, .05), 
-            title  = 'Unemployment Rate', 
-            legend.format=
-                list(fun=function(x) {paste0(x*100, "%")})) +
-    tm_shape(union_ls[[3]])+
-    tm_borders()+
-    tm_scale_bar()+
-    tm_layout(title = title_ls[[3]], legend.frame = T)
-         
- tmap_arrange(perth_unemployment, 
-             eileanan_unemployment, 
-             north_tyneside_employment)
+map2(employment_maps, employment_map_path, function(x, y){
+  tmap_save(x,
+            filename = y, 
+              width = 4.5, 
+            height = 4.5)
+}) 
 
-```
+``` 
 
 
 ## Income Deprivation 
@@ -280,56 +240,43 @@ dep_england_tidy %>%
 ```
 
 
-```{r income-map, echo=FALSE, warning=F, message=F, fig.width=10, fig.height=10}
+```{r income-map, echo=FALSE, warning=F, message=F, fig.width=16, fig.height=6}
 
-title_ls <- glue('{place_names} - Income Deprivation Rate')
+title_ls <- glue('{place_names}')
 
-    
-perth_income <- tm_shape(employment_ls[[1]]) +
+
+
+employment_ls <- list(perthshire,
+                      Na_h_Eileanan_an_Iar,
+                      northumberland_employment)
+tmap_style("gray")
+
+income_maps <- map(1:3, function(x){
+  tm_shape(employment_ls[[x]]) +
     tm_fill('income_rate',
-                palette = 'YlGnBu', 
-                style=c("fixed"), 
-                breaks = seq(0, .6, .05), 
-            title  = 'Income Rate', 
+            title  = 'Income Deprivation\nRate',
+            palette = '-YlGnBu',
+            style = 'log10',
             legend.format=
-                list(fun=function(x) {paste0(x*100, "%")})) +
-    tm_shape(union_ls[[1]])+
-    tm_borders()+
+                list(fun=function(x) {paste0(round(x, 2)*100, "%")})) +
     tm_scale_bar()+
-    tm_layout(title = title_ls[[1]], legend.frame = T)
-    
-eileanan_income <- tm_shape(employment_ls[[2]]) +
-    tm_fill('income_rate',
-                palette = 'YlGnBu', 
-                style=c("fixed"), 
-                breaks = seq(0, .6, .05), 
-            title  = 'Income Rate', 
-            legend.format=
-                list(fun=function(x) {paste0(x*100, "%")})) +
-    tm_shape(union_ls[[2]])+
-    tm_borders()+
-    tm_scale_bar()+
-    tm_layout(title = title_ls[[2]], legend.frame = T)
+    tm_layout(title = title_ls[[x]],
+              legend.frame = T,
+              legend.bg.color = 'white',
+              asp = 1)
+})
 
+tmap_arrange(income_maps)
 
+ income_map_path <- glue('/Users/emeador/OneDrive - SRUC/Twenty_five_years_on/png/maps/income/{place_names}_income.png')
 
-north_tyneside_income <- tm_shape(employment_ls[[3]]) +
-    tm_fill('income_rate',
-                palette = 'YlGnBu', 
-                style=c("fixed"), 
-                breaks = seq(0, .6, .05), 
-            title  = 'Income Rate', 
-            legend.format=
-                list(fun=function(x) {paste0(x*100, "%")})) +
-    tm_shape(union_ls[[3]])+
-    tm_borders()+
-    tm_scale_bar()+
-    tm_layout(title = title_ls[[3]], legend.frame = T)
-         
- 
-tmap_arrange(perth_income, 
-             eileanan_income, 
-             north_tyneside_income)
+ map2(income_maps, income_map_path, function(x, y){
+   tmap_save(x,
+             filename = y,
+             width = 4.5,
+             height = 4.5)
+ })
+
 ```
 
 

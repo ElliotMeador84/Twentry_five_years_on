@@ -1,5 +1,5 @@
 ---
-title: "Annual Survey of Hours and Earnings"
+title: "Earnings, Commute and Housing"
 author: "Elliot Meador"
 date: "23/10/2019"
 output: word_document
@@ -14,6 +14,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r library-data, echo=F, warning=F, message=F}
+library(ggplot2)
+library(lubridate)
+library(janitor)
 library(tidyverse)
 library(scales)
 library(glue)
@@ -33,13 +36,15 @@ if(Sys.info()[[1]] == 'Windows'){
 pop_theme <- theme_bw()+
     theme(text = element_text(size = 13.5, 
                               color = 'black'), 
-          axis.text.x = element_text(angle = 45, hjust = 1), 
           panel.grid.minor = element_blank(), 
-          axis.title.y = element_text(angle = 0), 
+          axis.title.y = element_text(angle = 0, hjust = 1, face = 'italic', size = 10),
           plot.margin = margin(1,1,1,1, 'cm'), 
           strip.background = element_blank(), 
-          strip.text.y = element_text(angle = 0), 
-          legend.position = 'bottom')
+          strip.text.y = element_text(angle = 0, hjust = 0), 
+          legend.position = 'bottom', 
+          plot.caption = element_text(hjust = 0, face= "italic"), #Default is hjust=1
+        plot.title.position = "plot", #NEW parameter. Apply for subtitle too.
+        plot.caption.position =  "plot")
 
 
 
@@ -50,8 +55,6 @@ names(case_study_cols) <- c('Perth Kinross',
                             'Northumberland', 
                             'Eilean Siar')
 ```
-
-
 
 
 
@@ -87,26 +90,16 @@ example_tidy <- example %>%
 
 ```
 
-
-# Data
-
-Data presented below comes from the Annual Survey of Hours and Earnings (ASHE). The ASHE is conducted once yearly across the UK. The survey dates back to 2002. A survey questionnaire is sent to businesses (owners) and they are asked to complete information about the business and employees. Because it is a survey, there are cases when the sample is too low to publish accurate numbers. This occurs due to response error as respondents are not required to send in their survey to researchers. 
-
-The local authority of Na h-Eileanan Siar (Outer Hebrides), where Harris is located, has low response numbers for some years. This information is left blank in the published ASHE database. Therefore, the time series plots shown in Section 2 use a interpolation line to **smooth** over missing data points. 
-
-In the following section, we provide general statistics on the local authority areas and where they sit within the wider UK context. 
-
-
-# Section 1
-
-In general, pay has increased for all case study local authority areas, and there has not been a drastic change in number of hours worked. Workers in Na h-Eileanan Siar and Perthshire have worked fewer hours overtime, whilst workers in Northumberland are working about the same number of hours.  
-Median annual pay is higest in Perthsire, followed closely by Northumberland. 
+# Income and Employment
+1. Annual gross pay is highest in Perthshire (~£19k), followed closely by Northumberland (~£18k). Na h-Eileanan Siar has mean annual pay much lower (~£15k). Hourly gross pay has also gone up.
+2. Pay for all case study areas has gone up. Though Na h-Eileanan Siar has increased the least and is now lower than Perthshire and Northumberland. 
+3. Total hours worked decreased in Na h-Eileanan Siar and Perthshire but not in Northumberland.
 
 ```{r rest-uk, echo=F, warning=F, message=F, fig.width=12, fig.height=12}
 case_study_df <- ASHE_Table_8_tidy %>% 
   mutate(case_study = case_when(
     str_detect(area, 'Perth Kinross')~'Perth and Kinross', 
-    str_detect(area, 'Eilean Siar')~'Na h-Eileanan Siar',
+    str_detect(area, 'Eilean Siar')~'Outer Hebrides',
     str_detect(area, 'Northumberland')~'Northumberland',
     T ~ 'Rest of UK'
   
@@ -128,33 +121,9 @@ case_study_df %>%
   select(-rowid) %>% 
   rename('Hours and Earnings\nIndicator' = file) %>% 
   flextable(cwidth = c(2, 1.25, 1.25, 1.25, 1.25)) %>% 
-  set_caption('Comparing case study areas to the rest of the UK - 2015 through 2018 mean values shown')
+  set_caption('Comparing case study areas to the rest of the UK - 2015 through 2018 mean values shown') %>% 
+  add_footer_lines('Data are from the UK Annual Survey of Hours and Earnings (ASHE).\nNOTE: Low output numbers reported for Outer Hebrides.') 
 
-
-
-```
-
-
-# Section 2 - Change over time
-
-```{r plots, echo=F, warning=F, message=F, fig.width=12, fig.height=12}
-
-
-bind_rows(example_tidy) %>% 
-  filter(!file %in% c('Annual pay incentive', 
-                      'Overrtime pay')) %>% 
-    ggplot(aes(year, diff, color = area, group = area))+
-    geom_hline(yintercept = 0, linetype = 4)+
-    geom_smooth(se = F, size = 2.5)+
-    scale_color_manual(values = case_study_cols, 
-                       name = 'Case Study Local Authority')+
-    facet_wrap(~file, scales = 'free')+
-    pop_theme+
-    theme(legend.position = 'bottom')+
-    labs(title = 'Yearly change', 
-         x = 'Year', 
-         y = 'Median Change\nover time', 
-         caption = 'Horizontal line represents value in 2002')
 
 
 ```
@@ -164,25 +133,167 @@ bind_rows(example_tidy) %>%
 ```{r facet-plots, echo=F, warning=F, message=F, fig.width=12, fig.height=12}
 
 
-example %>%
+ashe_facet_plot <- example %>%
   filter(sheet == 'All') %>% 
   group_by(file, area) %>% 
-  # filter(value %in% c(min(value, na.rm = T), max(value, na.rm = T))) %>% 
     filter(!file %in% c('Annual pay incentive', 
                       'Overtime pay')) %>% 
   arrange(file, area) %>% 
   ggplot(aes(year, value, color = area))+
-  geom_line(size = 1.25)+
-  geom_point(size = 3.5)+
+    geom_smooth(se = F, size = 2.5)+
    scale_color_manual(values = case_study_cols, 
-                       name = 'Case Study Local Authority')+
+                       name = 'Case Study Local Authority', 
+                      labels = c('Outer Hebrides', 
+                                 'Northumberland', 
+                                 'Perth and Kinross'))+
+  scale_y_continuous(labels = comma)+
   facet_wrap(~file, scales = 'free', ncol = 3)+
   pop_theme+
-  labs(title = 'Minimum and Maximum values over time')
+  labs(title = 'Change in pay and hours worked over time',
+       subtitle = 'SOURCE: Annual Survey of Hours and Earnings (ASHE) 2004 - 2019', 
+       x = 'Year', 
+       y = 'Median\nvalue', 
+       caption = 'NOTE: Interpolated lines shown. Missing lines indicate insufficient data.\nTitles that include "pay" are reported in pounds sterling (£).' )
+
+
+ggsave(ashe_facet_plot, 
+       filename = '/Users/emeador/OneDrive - SRUC/Twenty_five_years_on/png/ashe_facet_plot.png', 
+       height = 12, 
+       width = 12)
+
+ashe_facet_plot
+
+
+
 
 
 
 ```
+
+
+# Commute over time
+
+```{r commute-scratch, echo=F, warning=F, message=F, fig.width=12, fig.height=8}
+
+load('/Users/emeador/OneDrive - SRUC/Data/travel/commute/UK_commute_type_over_time_tidy.RData')
+
+
+la_detect <- str_c(c('RB Perth and Kinross', 
+                     '35 Northumberland'), 
+                   collapse = '|')
+
+
+
+df <- UK_commute_type_over_time_tidy %>% 
+    filter(str_detect(local_authority, la_detect)) %>% 
+    mutate(local_authority = str_remove(local_authority, '^..'), 
+           local_authority = str_remove_all(local_authority, '[[:digit:]]'),
+           local_authority = str_squish(local_authority))
+
+case_study_cols_adj <- c(Spectral[c(1, 4)])
+
+names(case_study_cols_adj) <- c('Perth and Kinross', 
+                                'Northumberland')
+
+```
+
+1. Time (minutes) spent commuting to work has increased for both Northumberland and Perth and Kinross. 
+2. Perth and Kinross has increased substantially to over 30 minutes on average.
+
+```{r commute-plot, echo=F, warning=F, message=F, fig.width=12, fig.height=8}
+commute_time_gg <- df %>% 
+    select(local_authority, year, mean_time_minutes) %>%
+    ggplot(aes(year, mean_time_minutes, color = local_authority, group = local_authority))+
+    geom_hline(yintercept = 17.2, linetype = 4, color = Spectral[11], size = 2)+
+    geom_line(size = 2.5)+
+    geom_point(size = 7.5)+
+    scale_color_manual(values = case_study_cols_adj)+
+    pop_theme +
+    labs(title = 'Average time spent on work commute by case study area over time', 
+         subtitle = 'SOURCE: Office of National Statistics (ONS) - Retrieved 2019',
+         x = 'Year', 
+         y = 'Mean commute time\nin minutes', 
+         color = 'Case study Local Authority', 
+         caption = 'Data reported for Outer Hebrides in only 2016. Dotted line shows Outer Hebrides time of 17.1 minutes. \nEstimates are based on small sample sizes and are therefore subject to a margin of uncertainty. They should therefore be treated with caution.\nPlease note that these data are not Seasonally Adjusted. Weighted to 2014.\nCopyright@ons.gov.uk')
+
+ggsave(commute_time_gg, 
+       filename = '/Users/emeador/OneDrive - SRUC/Twenty_five_years_on/png/commute.pdf', 
+       width = 12, 
+       height = 10)
+
+
+
+```
+
+
+
+# Housing over time
+1. Housing costs are on an upward trend for all case study areas. 
+2. The Outer Hebrides has seen the sharpest rise. 
+3. Northumberland and Perth and Kinross have experienced a reduction in the number of total homes sold, which might partly explain why the price has increased. 
+4. Data does not consider holiday homes or repeated sales of the same property. 
+
+```{r housing-plots, echo=F, warning=F, message=F, fig.width=12, fig.height=8}
+
+housing_price <- read_csv('/Users/emeador/OneDrive - SRUC/Twenty_five_years_on/data/case_study_data_housing_prices.txt') %>% 
+  clean_names()
+
+case_study_cols <- c(Spectral[c(1, 4, 11)], 
+                     adjustcolor(Greys[2], .25))
+
+names(case_study_cols) <- c('Perth and Kinross', 
+                            'Northumberland', 
+                            'Na h-Eileanan siar')
+
+
+house_df <- housing_price %>% 
+  mutate(period = parse_date_time(period, 'ym')) %>% 
+  group_by(name) %>% 
+  mutate(sales_base = ifelse(period == min(period), average_price_all_property_types, NA), 
+         n_base = ifelse(period == min(period), sales_volume, NA)) %>% 
+  arrange(name) %>% 
+  fill(c(sales_base, n_base), .direction = 'down') %>% 
+  mutate(sales_diff = average_price_all_property_types-sales_base, 
+         n_diff = sales_volume - n_base) %>% 
+  select(name, period, sales_diff, n_diff) %>% 
+  gather(key, value, -name, -period) %>% 
+  mutate(key = ifelse(key == 'sales_diff', 'Change in average sales prices (£)', 
+                      'Change in number of houses sold'))
+  
+
+
+house_df %>% 
+  ggplot(aes(period, value, color = name))+
+  geom_hline(yintercept = 0, 
+             linetype = 4, 
+             size = 1)+
+  geom_line(size = 1.75)+
+  geom_point(size = 5)+
+  scale_color_manual(values = case_study_cols, 
+                     labels = c('Outer Hebrides', 
+                                'Northumberland', 
+                                'Perth and Kinross'))+
+  scale_x_datetime(expand = c(.015, .015),  
+                   labels=date_format("%b - %Y"))+
+  scale_y_continuous(labels = comma)+
+  pop_theme +
+  facet_wrap(~key, scales = 'free')+
+  labs(title = 'Housing prices and total sold by case study area since October 2018', 
+       subtitle = 'SOURCE: UK House Price Index - Retrieved 2019',
+       x = 'Month - Year', 
+       y = 'Average price\n& total number\nall proprety types', 
+       color = 'Case Study Local Authority',
+       caption = 'Dotted line represents value in October 2018.\nNOTE: Missing data reported for last month in number of houses sold.')
+  
+
+
+```
+
+
+
+
+
+
 
 
 
