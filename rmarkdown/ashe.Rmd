@@ -19,15 +19,12 @@ library(scales)
 library(glue)
 library(flextable)
 
-if(Sys.info()[[1]] == 'Windows'){
   
-    ASHE_Table_8_tidy <- read_csv('C:/Users/emeador/OneDrive - SRUC/Data/ashe/home_geography/ASHE_Table_8_tidy.csv')
-    source('C:/Users/emeador/OneDrive - SRUC/all_functions.R')
+ASHE_Table_8_tidy <- read_csv('~/OneDrive - SRUC/Data/ashe/home_geography/ASHE_Table_8_tidy.csv')
     
-} else {
-      ASHE_Table_8_tidy <- read_csv('/Users/johne.meador/OneDrive - SRUC/Data/ashe/home_geography/ASHE_Table_8_tidy.csv')
-  
-}
+    
+source('~/OneDrive - SRUC/all_functions.R')
+    
 
 
 pop_theme <- theme_bw()+
@@ -103,6 +100,7 @@ In general, pay has increased for all case study local authority areas, and ther
 Median annual pay is higest in Perthsire, followed closely by Northumberland. 
 
 ```{r rest-uk, echo=F, warning=F, message=F, fig.width=12, fig.height=12}
+
 case_study_df <- ASHE_Table_8_tidy %>% 
   mutate(case_study = case_when(
     str_detect(area, 'Perth Kinross')~'Perth and Kinross', 
@@ -114,7 +112,6 @@ case_study_df <- ASHE_Table_8_tidy %>%
   drop_na(country)
 
 
-
 case_study_df %>% 
   filter(year >= max(year)-3, 
          sheet == 'All') %>% 
@@ -122,7 +119,8 @@ case_study_df %>%
   summarise(mean = mean(value, na.rm = T)) %>% 
   rowid_to_column() %>% 
   spread(case_study, mean) %>% 
-  fill(rowid:"Rest of UK") %>% 
+  ungroup() %>% 
+  fill(names(.)) %>% 
   drop_na() %>% 
   mutate_if(is.numeric, function(x)dollar(x, prefix = '£')) %>% 
   select(-rowid) %>% 
@@ -143,10 +141,16 @@ case_study_df %>%
 bind_rows(example_tidy) %>% 
   filter(!file %in% c('Annual pay incentive', 
                       'Overrtime pay')) %>% 
-    ggplot(aes(year, diff, color = area, group = area))+
-    geom_hline(yintercept = 0, linetype = 4)+
-    geom_smooth(se = F, size = 2.5)+
-    scale_color_manual(values = case_study_cols, 
+  ungroup() %>% 
+    ggplot(aes(year, diff, 
+               color = area, 
+               group = area))+
+    geom_hline(yintercept = 0, 
+               linetype = 4)+
+    geom_smooth(se = F, 
+                size = 2.5)+
+    scale_color_manual(
+      values = case_study_cols, 
                        name = 'Case Study Local Authority')+
     facet_wrap(~file, scales = 'free')+
     pop_theme+
@@ -177,7 +181,7 @@ example %>%
    scale_color_manual(values = case_study_cols, 
                        name = 'Case Study Local Authority')+
   facet_wrap(~file, scales = 'free', ncol = 3)+
-  pop_theme+
+  pop_theme()+
   labs(title = 'Minimum and Maximum values over time')
 
 
