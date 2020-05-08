@@ -11,10 +11,21 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+<<<<<<< HEAD
 ```{r data-library, echo=F, message=F, warning=F, results='hide'}
+=======
+
+
+
+
+
+```{r scratch, echo=F, message=F, warning=F}
+library(ggplot2)
+>>>>>>> 15fdc92a8343fff8c1805198b3b61445fcc1591e
 library(tidyverse)
 library(janitor)
 library(openxlsx)
+<<<<<<< HEAD
 library(glue)
 library(flextable)
 library(scales)
@@ -25,6 +36,38 @@ library(tmap)
 library(tmaptools)
 
     ## Deprivation Data
+=======
+library(corrplot)
+
+source('/Users/emeador/OneDrive - SRUC/all_functions.R')
+
+pop_theme <- theme_bw()+
+    theme(text = element_text(size = 13.5, 
+                              color = 'black'), 
+          panel.grid.minor = element_blank(), 
+          axis.title.y = element_text(angle = 0, hjust = 1, face = 'italic'),
+          plot.margin = margin(1,1,1,1, 'cm'), 
+          strip.background = element_blank(), 
+          strip.text.y = element_text(angle = 0, hjust = 0), 
+          legend.position = 'bottom', 
+          plot.caption = element_text(hjust = 0, face= "italic"), #Default is hjust=1
+        plot.title.position = "plot", #NEW parameter. Apply for subtitle too.
+        plot.caption.position =  "plot")
+
+
+
+
+case_study_cols <- c(Spectral[c(1, 4, 11, 11)], Greys[c(4, 4)])
+
+names(case_study_cols) <- c('Perthshire', 
+                            'Northumberland', 
+                            'Eilean Siar', 
+                            'Na h-Eileanan Siar', 
+                            'Rest of Scotland', 
+                            'Rest of England')
+
+
+>>>>>>> 15fdc92a8343fff8c1805198b3b61445fcc1591e
 
     dep_england <- st_read('/Users/emeador/OneDrive - SRUC/Data/deprivation/england/english_deprivation_score_sf.shp')
     
@@ -188,6 +231,7 @@ income_employ_dep %>%
 ```
 
 
+<<<<<<< HEAD
 ```{r employment-map, echo=FALSE, warning=F, message=F, fig.width=10, fig.height=10}
 
 employment_ls <- list(perthshire, Na_h_Eileanan_an_Iar, north_tyneside_employment)
@@ -258,11 +302,69 @@ dep_england_tidy %>%
   rename('Case study area' = case_study) %>% 
   flextable(cwidth = c(2,1,1,1,1)) %>% 
   set_caption('Proportion of Employment Deprivation in case study ares')
+=======
+# Deprivation overview
+
+England and Scotland both have their own versions of an index of multiple deprivation, known as the IMD and SMID respectively. Both indexes rank small-area output regions based on scores pulled from seven domains. They are
+
+1. Income
+2. Employment
+3. Educational attainment
+4. Distance to services
+5. Health deprivation
+6. Crime deprivation
+7. Housing deprivation
+
+These indeces are quite similar in their approach to data collection, aggregation and analysis, though there are some differences which do not allow these data to compared directly. These include:
+
+1. Differing data aggregation levels - In Scotland these are datazones and England these are lower layer super output areas; and,
+2. Slightly different approaches to measuring each type of deprivation. 
+3. Indeces are published on different years. 
 
 
+There are different ways to show the data below. We can:
+
+1. Show percentage change from base year (earliest year) - this makes it easier to discuss at an aggregate level and we can more easily compare changes across metrics and countries.
+2. Each case study area can be mapped to show change over time - so have a map for case study and for each year. This is another way to show what is below (specific change over time.)
+
+# Findings over time
+
+## Scotland
+>>>>>>> 15fdc92a8343fff8c1805198b3b61445fcc1591e
+
+
+<<<<<<< HEAD
 ```
+=======
 
 
+scotland_deprivation_gg <- scotland_deprivation_scores %>% 
+  ungroup() %>%
+  group_by(case_study,key, year) %>% 
+  summarise(median = median(value, na.rm = T)) %>% 
+  ggplot(aes(year, median, group = case_study, color = case_study))+
+  geom_line(size = 1.75)+
+  geom_point(size = 4.85)+
+  scale_color_manual(values = case_study_cols, 
+                     labels = c('Outer Hebrides', 
+                                'Perth and Kinross', 
+                                'Rest of Scotland'))+
+  scale_x_continuous(breaks = 2009:2019)+
+  facet_wrap(~key, ncol = 2, scales = 'free_y')+
+  pop_theme +
+  labs(title = 'Comparing Scottish Domains of Deprivation Over Time', 
+       x = 'Year', 
+       y = 'Median\nvalue', 
+       color = 'Case study Local Authority', 
+       caption = 'NOTE: Varying scales on vertical axis.  Data are from the Scottish Indeces of Multiple Deprivation historical data.')
+
+>>>>>>> 15fdc92a8343fff8c1805198b3b61445fcc1591e
+
+ggsave(scotland_deprivation_gg, filename = '/Users/emeador/OneDrive - SRUC/Twenty_five_years_on/png/scotland_deprivation.png', 
+       height = 12, 
+       width = 12)
+
+<<<<<<< HEAD
 ```{r income-map, echo=FALSE, warning=F, message=F, fig.width=10, fig.height=10}
 
 title_ls <- glue('{place_names} - Income Deprivation Rate')
@@ -361,6 +463,216 @@ cor_scotland %>%
 
 
 
+=======
+scotland_deprivation_gg
+
+
+
+
+```
+
+
+
+## England
+```{r england-facet-imd, echo=F, message=F, warning=F, fig.width=11, fig.height=11}
+
+
+england_deprivation_gg <- england_tidy %>% 
+  filter(!str_detect(key, 'Sub')) %>% 
+  ungroup() %>%
+  group_by(case_study,key, year) %>% 
+  summarise(median = as.numeric(median(value, na.rm = T))) %>% 
+  ggplot(aes(year, median, group = case_study, color = case_study))+
+  geom_line(size = 1.5)+
+  geom_point(size = 4.75)+
+  scale_color_manual(values = case_study_cols)+
+  scale_x_continuous(breaks = 2009:2019)+
+  facet_wrap(~key, ncol = 2, scales = 'free_y')+
+  pop_theme +
+  labs(title = 'Comparing English Domains of Deprivation Over Time', 
+       x = 'Year', 
+       y = 'Median\nvalue', 
+       color = 'Case study Local Authority', 
+       caption = 'NOTE: Varying scales on vertical axis. Data are from the [England] Indeces of Multiple Deprivation historical data.')
+
+
+
+ggsave(england_deprivation_gg, 
+       filename = '/Users/emeador/OneDrive - SRUC/Twenty_five_years_on/png/england_deprivation_gg.png', 
+       height = 12, 
+       width = 12)
+
+england_deprivation_gg
+
+
+
+```
+
+
+# Findings - correlations
+
+Poverty is often experienced in myriad ways, with hardships in one area, like low income, causing hardships in others. One way to explore that is through correlation analysis. Correlations look at statistical relationships between two variables. In the following sections we look at correlations between factors around income and employment. 
+
+The plots below show correlations between the deprivation in domains in Scotland and Wales. The cell text is the pearson correlation value. This can (loosely) be interpretted as:
+
+1. 0 - 0.3 Low correlation
+2. 0.31 - 0.6 Medium-strong correlation
+3. 0.61 and above Strong correlation
+
+Most correlations shown below are positive. This means that as one variable increases so does the corresponding variable. A negative sign (-) implies that as one variable increase the corresponding variable decreases.
+
+In general, (especially in Scotland), deprivation is positively correlated to itself. The strongest correlation is between income and employment. The more employment deprived one is (usually) the more income deprived they are. Access to services is usually negatively correlated. This is likely due to the poorer neighbourhoods in more urban areas.
+
+### Scotland
+
+```{r scotland-corr, echo=F, message=F, warning=F, fig.width=10, fig.height=10}
+
+scotland_dep_2016 <- scotland_deprivation_scores.i[[3]]
+
+
+
+df <- scotland_dep_2016 %>%
+  mutate_if(is.numeric, function(x)x+1) %>% 
+  mutate_if(is.numeric, scale) %>% 
+  select_if(is.numeric) %>%
+  select(-year, -simd2016_crime_rate) %>% 
+  na.omit()
+  
+
+
+
+
+M <- cor(df)
+
+
+# ... : further arguments to pass to the native R cor.test function
+cor.mtest <- function(mat, ...) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat<- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+        for (j in (i + 1):n) {
+            tmp <- cor.test(mat[, i], mat[, j], ...)
+            p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+        }
+    }
+  colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+  p.mat
+}
+
+
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+
+
+colnames(M) <- c('Income', 
+                 'Employment', 
+                 'Health',
+                 'Education', 
+                 'Housing', 
+                 'Acesss')
+
+
+row.names(M) <- colnames(M) 
+
+
+
+
+corrplot(M, method="color", col=YlGnBu_n(200),  
+         type="upper", order="hclust", 
+         addCoef.col = "black", # Add coefficient of correlation
+         tl.col="black", tl.srt=45, #Text label color and rotation
+         # Combine with significance
+         p.mat = cor.mtest(df), sig.level = 0.01, insig = "blank", 
+         # hide correlation coefficient on the principal diagonal
+         diag=FALSE ,
+          mar = c(1, 1, 1, 1)
+         
+         )
+
+
+
+```
+
+
+
+### England
+
+```{r england-corr, echo=F, message=F, warning=F, fig.width=10, fig.height=10}
+
+
+england_dep_2019 <- england_df_ls.i[[3]]
+
+
+
+
+df <- england_deprivation_scores %>% 
+  filter(year == 2019) %>% 
+  select(-contains('rank')) %>% 
+  select_if(is.numeric) %>% 
+  select(-contains('decile'))%>%
+  mutate_if(is.numeric, function(x)x+1) %>% 
+  mutate_if(is.numeric, scale) %>% 
+  select(income_score_rate, 
+         employment_score_rate, 
+         health_deprivation_and_disability_score, 
+         education_skills_and_training_score, 
+         barriers_to_housing_and_services_score, 
+         living_environment_score, 
+         indoors_sub_domain_score, 
+         outdoors_sub_domain_score,
+         geographical_barriers_sub_domain_score, 
+         wider_barriers_sub_domain_score) %>% 
+  set_names('Income', 'Employment', 'Health', 'Education', 'Housing', 'Living environment', 'Indoors environment', 'Outdoors environment', 'Geographical barriers', 'Wider barriers')
+
+
+
+
+
+
+
+
+
+M <- cor(df)
+
+
+# ... : further arguments to pass to the native R cor.test function
+cor.mtest <- function(mat, ...) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat<- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+        for (j in (i + 1):n) {
+            tmp <- cor.test(mat[, i], mat[, j], ...)
+            p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+        }
+    }
+  colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+  p.mat
+}
+
+
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+
+
+
+
+
+corrplot(M, method="color", col=YlGnBu_n(200),  
+         type="upper", order="hclust", 
+         addCoef.col = "black", # Add coefficient of correlation
+         tl.col="black", tl.srt=45, #Text label color and rotation
+         # Combine with significance
+         p.mat = cor.mtest(df), sig.level = 0.01, insig = "blank", 
+         # hide correlation coefficient on the principal diagonal
+         diag=FALSE ,
+          mar = c(1, 1, 1, 1)
+         
+         )
+
+
+>>>>>>> 15fdc92a8343fff8c1805198b3b61445fcc1591e
 ```
 
 
@@ -394,3 +706,11 @@ cor_scotland %>%
 
 
 
+<<<<<<< HEAD
+=======
+
+
+
+
+
+>>>>>>> 15fdc92a8343fff8c1805198b3b61445fcc1591e
